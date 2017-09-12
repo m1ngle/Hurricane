@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Historical Number of Cyclones 1851 - 2014</title>
+
+<!-- This program plots historical temperatures based on worldwide averages taken in June of each year from 1895 - 2017. Source https://www.climate.gov/
+From NASA and NOAA data. -->
+
+<style>
+body {
+  font: 11px sans-serif;
+}
+
+.line {
+    stroke: #fc9272;
+    fill: none;
+    stroke-width: 3;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+    font-size: 10px;
+    font-family: sans-serif;
+}
+
+.text-label {
+    font-size: 10px;
+    font-family: sans-serif;
+}
+
+.dot {
+    stroke: #293b47;
+    fill: #7A99AC;
+
+}
+
+.tooltip {
+  position: absolute;
+  width: 200px;
+  height: 28px;
+  pointer-events: none;
+}
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<script>
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+
+// setup x 
+var xYear = function(d) { return d.Year;}, // data -> Temp
+    xScale = d3.scale.linear().range([0, width]), // Temp -> display
+    xMap = function(d) { return xScale(xYear(d));}, // data -> display
+    xAxis = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(d3.format("d"));
+
+// setup y
+var yC02 = function(d) { return d["C02"];}, // data -> Temp
+    yScale = d3.scale.linear().range([height, 0]), // Temp -> display
+    yMap = function(d) { return yScale(yC02(d));}, // data -> display
+    yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+// setup fill color
+var cTemp = function(d) { return d.C02;},
+   color = d3.scale.category10();
+
+// add the graph canvas to the body of the webpage
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// add the tooltip area to the webpage
+var tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+
+  // load data
+d3.csv("Cyclones.csv", function(error, data) {
+
+    var xLabels = data.map(function (d) { return d['Year']; })
+    var yLabels = data.map(function (d) { return d['C02(ppm)']; })
+
+  // change string (from CSV) into number format
+  data.forEach(function(d) {
+    d.Year = +d.Year;
+    d["C02"] = +d["C02"];
+//    console.log(d);
+  });
+
+  // don't want dots overlapping axis, so add in buffer to data domain
+  xScale.domain([d3.min(data, xYear)-1, d3.max(data, xYear)+1]);
+  yScale.domain([d3.min(data, yC02)-1, d3.max(data, yC02)+1]);
+
+
+  // x-axis
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+     .append("text")
+      .attr("class", "label")
+      //.attr("transform", "rotate(-45)")
+      .attr("x", width)
+      .attr("y", -6)
+      .style("text-anchor", "end")
+      .text("Year");
+
+
+  // y-axis
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+     .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Number of Cyclones");
+
+  svg.append("text")
+      .attr("x", (width + (margin.left + margin.right) )/2)
+      .attr("y", 0 + margin.top)
+      .attr("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("font-family", "sans-serif")
+      .text("Historical Number of Major Cyclones (Atlantic Ocean) 1851 - 2014");
+
+    svg.append("text")
+      .attr("x", (width + (margin.left + margin.right) )/2)
+      .attr("y", height + margin.bottom)
+      .attr("text-anchor", "middle")
+      .style("font-size", "8px")
+      .style("font-family", "sans-serif")
+      .text("Source: National Hurricane Center")
+      .on("click", function() { window.open("http://www.nhc.noaa.gov/data/"); });
+
+  // draw dots
+  svg.selectAll(".dot")
+      .data(data)
+    .enter().append("circle")
+      .attr("class", "dot")
+      .attr("r", 3.5)
+      .attr("cx", xMap)
+      .attr("cy", yMap)
+      // .style("fill", function(d) { 
+      //   return color(cTemp(d));})
+   
+
+
+      .on("mouseover", function(d) {
+          d3.select(this).attr("r", 5.5).style("fill", "red");
+     
+          tooltip.transition()
+               .duration(200)
+               .style("opacity", .9);
+
+
+          tooltip.html("Year: " + xYear(d) 
+	        + "<br/> " + "No. of Cyclones: "+ yC02(d))
+               .style("right", (d3.event.pageX))
+               .style("top", (d3.event.pageY))
+               .style("font-weight", "bold")
+               .style("font-size","16px");
+
+      })
+      .on("mouseout", function(d) {
+        d3.select(this).attr("r", 3.5).style("fill", "#7A99AC");
+          tooltip.transition()
+               .duration(500)
+               .style("opacity", 0);
+
+
+
+
+      });
+
+   // get the x and y values for least squares
+    var xSeries = d3.range(1, xLabels.length + 1);
+    var ySeries = data.map(function(d) { return parseFloat(d['C02']); });
+    
+    var leastSquaresCoeff = leastSquares(xSeries, ySeries);
+    
+    // apply the reults of the least squares regression
+    var x1 = xLabels[0];
+    var y1 = leastSquaresCoeff[0] + leastSquaresCoeff[1];
+    var x2 = xLabels[xLabels.length - 1];
+    var y2 = leastSquaresCoeff[0] * xSeries.length + leastSquaresCoeff[1];
+    var trendData = [[x1,y1,x2,y2]];
+    
+    var trendline = svg.selectAll(".trendline")
+      .data(trendData);
+      
+    trendline.enter()
+      .append("line")
+      .attr("class", "trendline")
+      .attr("x1", function(d) { return xScale(d[0]); })
+      .attr("y1", function(d) { return yScale(d[1]); })
+      .attr("x2", function(d) { return xScale(d[2]); })
+      .attr("y2", function(d) { return yScale(d[3]); })
+      .attr("stroke", "red")
+      .attr("stroke-width", 2);
+    
+    // display equation on the chart
+    svg.append("text")
+      .text("eq: " + decimalFormat(leastSquaresCoeff[0]) + "x + " + 
+        decimalFormat(leastSquaresCoeff[1]))
+      .attr("class", "text-label")
+      .attr("x", function(d) {return xScale(x2) - 60;})
+      .attr("y", function(d) {return yScale(y2) - 30;});
+    
+    // display r-square on the chart
+    svg.append("text")
+      .text("r-sq: " + decimalFormat(leastSquaresCoeff[2]))
+      .attr("class", "text-label")
+      .attr("x", function(d) {return xScale(x2) - 60;})
+      .attr("y", function(d) {return yScale(y2) - 10;});
+   
+
+});
+
+  function leastSquares(xSeries, ySeries) {
+    var reduceSumFunc = function(prev, cur) { return prev + cur; };
+    
+    var xBar = xSeries.reduce(reduceSumFunc) * 1.0 / xSeries.length;
+    var yBar = ySeries.reduce(reduceSumFunc) * 1.0 / ySeries.length;
+
+    var ssXX = xSeries.map(function(d) { return Math.pow(d - xBar, 2); })
+      .reduce(reduceSumFunc);
+    
+    var ssYY = ySeries.map(function(d) { return Math.pow(d - yBar, 2); })
+      .reduce(reduceSumFunc);
+      
+    var ssXY = xSeries.map(function(d, i) { return (d - xBar) * (ySeries[i] - yBar); })
+      .reduce(reduceSumFunc);
+      
+    var slope = ssXY / ssXX;
+    var intercept = yBar - (xBar * slope);
+    var rSquare = Math.pow(ssXY, 2) / (ssXX * ssYY);
+    
+    return [slope, intercept, rSquare];
+  }
+
+</script>
+</body>
+</html>
